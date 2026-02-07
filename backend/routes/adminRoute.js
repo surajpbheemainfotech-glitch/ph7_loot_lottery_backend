@@ -1,0 +1,38 @@
+import express from 'express'
+import { loginController } from '../controllers/adminController.js'
+import { authenticate } from '../middlewares/authMiddleware.js'
+import {
+    createPool,
+    deletePoolById,
+    getPool,
+    updatePoolBySlug
+} from '../controllers/poolsController.js'
+import {
+     addPackage,
+      deletePackageById,
+       getPackages, 
+       updatePackageById 
+    } from '../controllers/packageController.js'
+import upload from '../config/multerConfig.js'
+
+const adminRouter = express.Router()
+
+//admin login 
+
+adminRouter.post("/login", loginController)
+
+//pools
+
+adminRouter.post("/add-pools", authenticate, upload.single("Imageurl"), createPool)
+adminRouter.get("/pools", authenticate, getPool)
+adminRouter.patch("/pool/:slug", authenticate, upload.single("Imageurl"), updatePoolBySlug)
+adminRouter.delete("/pool/:id",authenticate,deletePoolById)
+
+// packages
+
+adminRouter.post("/add",authenticate,addPackage)
+adminRouter.get("/",authenticate,getPackages)
+adminRouter.patch("/update-package",authenticate, updatePackageById)
+adminRouter.delete("delete-package",authenticate,deletePackageById)
+
+export default adminRouter
