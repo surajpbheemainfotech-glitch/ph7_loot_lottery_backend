@@ -92,3 +92,81 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
+export const transferFund = async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    // 🔴 validation
+    if (!userId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "userId and amount are required",
+      });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    // 🔍 fetch user wallet
+    const [rows] = await db.execute(
+      "SELECT wallet FROM users WHERE id = ?",
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const currentBalance = Number(rows[0].wallet);
+
+    // ❌ insufficient balance
+    if (currentBalance < amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient wallet balance",
+      });
+    }
+
+    // ✅ deduct wallet balance
+    const newBalance = currentBalance - amount;
+
+    await db.execute(
+      "UPDATE users SET wallet = ? WHERE id = ?",
+      [newBalance, userId]
+    );
+
+    // 🎭 dummy Razorpay payout response
+    const dummyRazorpayResponse = {
+      payout_id: "payout_dummy_" + Date.now(),
+      status: "processed",
+      amount,
+      currency: "INR",
+      mode: "bank_transfer",
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Withdrawal successful (dummy)",
+      razorpay: dummyRazorpayResponse,
+      wallet: {
+        deducted: amount,
+        remainingBalance: newBalance,
+      },
+    });
+  } catch (error) {
+    console.error("Withdraw error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+

@@ -1,0 +1,26 @@
+import { calculateTicketScore } from "./calculateTicketScore.js";
+
+export function pickWinners(tickets, limit = 30) {
+  if (!tickets || tickets.length === 0) throw new Error("No tickets found");
+
+  const scoredTickets = tickets.map(t => ({
+    ...t,
+    score: calculateTicketScore(t.user_number, t.draw_number),
+  }));
+
+  // score desc + random tie break
+  scoredTickets.sort((a, b) => b.score - a.score || (Math.random() - 0.5));
+
+  const winners = [];
+  const usedUsers = new Set();
+
+  for (const ticket of scoredTickets) {
+    if (!usedUsers.has(ticket.user_id)) {
+      winners.push({ user_id: ticket.user_id, score: ticket.score });
+      usedUsers.add(ticket.user_id);
+    }
+    if (winners.length === limit) break;
+  }
+
+  return winners; // array of many candidates
+}

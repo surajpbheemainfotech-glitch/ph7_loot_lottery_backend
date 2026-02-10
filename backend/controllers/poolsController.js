@@ -2,7 +2,7 @@ import { db } from "../config/db.js";
 import { makeUniqueSlug, makeSlug } from "../helper/slugGenerator.js";
 import fs from "fs";
 import path from "path";
-import { fetchDummyUsers } from "./userController.js";
+
 
 export const createPool = async (req, res) => {
   try {
@@ -206,140 +206,173 @@ export const deletePoolById = async (req, res) => {
   }
 };
 
-
-export const declareResult = async (req, res) => {
-  
-  let conn;
+export const getResultWinnersByPoolName = async (req, res) => {
   try {
-    const { pool_name } = req.params;
+    const { title } = req.params;
 
-    if (!pool_name) {
-      return res.status(400).json({ success: false, message: "Pool name is required" });
-    }
-
-    conn = await db.getConnection();
-    await conn.beginTransaction();
-
-    // 1) Pool
-    const [poolRows] = await conn.execute(
-      `SELECT id, jackpot, expire_at, status
-       FROM pools
-       WHERE title = ?`,
-      [pool_name]
-    );
-
-    if (poolRows.length === 0) {
-      await conn.rollback();
-      return res.status(404).json({ success: false, message: "Pool not found" });
-    }
-
-    const pool = poolRows[0];
-
-    // 2) Create result (✅ declared_at = expire_at)
-    const [resultInsert] = await conn.execute(
-      `INSERT INTO results (pool_id, declared_at)
-       VALUES (?, ?)`,
-      [pool.id, pool.expire_at]
-    );
-
-    const resultId = resultInsert.insertId;
-
-    // 3) Get all users from tickets for this pool
-    //    ✅ pool table me user_id nahi chahiye
-    const [ticketUsers] = await conn.execute(
-      `SELECT DISTINCT user_id
-       FROM tickets
-       WHERE pool_name = ? AND payment_status = 'paid'`,
-      [pool_name]
-    );
-
-    if (ticketUsers.length === 0) {
-      await conn.rollback();
-      return res.status(409).json({
+    if (!title || !title.trim()) {
+      return res.status(400).json({
         success: false,
-        message: "No paid tickets found for this pool",
+        message: "pool_name is required",
       });
     }
 
-    // 4) Bulk insert into result_users
-    const values = ticketUsers.map((r) => [resultId, r.user_id]);
-
-   const [result] =  await conn.query(
-      `INSERT INTO result_users (result_id, user_id)
-       VALUES ?`,
-      [values]
+    // 1️⃣ Latest result by pool_name (snapshot safe)
+    const [[result]] = await db.execute(
+      `
+      SELECT
+        id,
+        pool_title,
+        jackpot,
+        declared_at
+      FROM results
+      WHERE TRIM(LOWER(pool_title)) = TRIM(LOWER(?))
+      ORDER BY declared_at DESC
+      LIMIT 1
+      `,
+      [title]
     );
 
-    const [user] = await db.execute(
-      `SELECT first_name, email FROM users WHERE id = ?`,
-      [result.user_id]
-    );
-
-    if(user.length == 0){
-      return res.status(404).json({success: true, message: "User not found"})
-    }else{
-      let total_users  =  user.length - 100
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: "No result found for this pool",
+      });
     }
 
-    const dummy_user = await fetchDummyUsers(total_users) 
+    // 2️⃣ Top-3 winners for that result
+    const [winners] = await db.execute(
+      `
+      SELECT
+        rw.position,
+        rw.prize_amount,
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.email
+      FROM result_winners rw
+      JOIN users u ON u.id = rw.user_id
+      WHERE rw.result_id = ?
+      ORDER BY rw.position ASC
+      LIMIT 3
+      `,
+      [result.id]
+    );
 
-    await conn.commit();
+    if (!winners.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Winners not declared yet",
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      message: "Result declared & result_users inserted successfully",
+      message: "Result winners",
+      data: {
+        pool_name: result.pool_title,
+        jackpot: result.pool_jackpot,
+        declared_at: result.declared_at,
+        winners,
+      },
     });
+
   } catch (error) {
-    if (conn) await conn.rollback();
-    console.error("declareResult error:", error);
+    console.error("getResultWinnersByPoolName error:", error);
     return res.status(500).json({
       success: false,
-      message: "Server error while declaring result",
-      error: error.message,
+      message: "Server error",
     });
-  } finally {
-    if (conn) conn.release();
+  }
+};
+
+export const getUserResultById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User id required",
+      });
+    }
+
+    const [user] = await db.execute(
+      `SELECT position, prize_amount FROM result_winners WHERE user_id = ?`,
+      [id]
+    );
+
+    // Agar user mil gaya
+    if (user.length > 0) {
+      return res.status(200).json({
+        success: true,
+        position: user[0].position,
+        prize_amount: user[0].prize_amount,
+      });
+    }
+
+    // Agar user nahi mila → random position
+    const randomPosition = Math.floor(Math.random() * 100) + 1;
+
+    return res.status(200).json({
+      success: true,
+      position: randomPosition,
+      prize_amount: 0,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+export const getExpirePoolByTitle = async (req, res) => {
+  try {
+    const { title } = req.query;
+
+    // 400 - Bad Request
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "title is required"
+      });
+    }
+
+    const result = await db.query(
+      `SELECT id AS pool_id, expire_at FROM pools WHERE title = $1`,
+      [title]
+    );
+
+    // 404 - Not Found
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Pool not found"
+      });
+    }
+
+    // 200 - OK
+    return res.status(200).json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    // 500 - Internal Server Error
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
   }
 };
 
 
 
-export const updatePoolStatus = async () => {
-  try {
-    const [result] = await db.execute(`
-      UPDATE pools
-      SET status = 'expired'
-      WHERE expire_at < NOW()
-      AND status != 'expired'
-    `);
 
-    console.log(`✅ Pools expired status updated: ${result.affectedRows}`);
-    return result.affectedRows;
-
-  } catch (error) {
-    console.error("❌ Pool expire update error:", error);
-    return 0;
-  }
-}
-
-export const deleteExpirePool = async (req, res) => {
-
-  try {
-    const [result] = await db.execute(
-      "DELETE FROM pools WHERE status = ?",
-      ["expired"]
-    );
-
-    if (result.affectedRows === 0) {
-      console.log("message: No expired pools found to delete")
-    }
-
-    console.log(`🗑️ Expired pools deleted: ${result.affectedRows}`);
-    return result.affectedRows;
-
-  } catch (error) {
-    console.error(" Pool delete error:", error);
-    return 0;
-  }
-}
 

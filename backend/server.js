@@ -2,7 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import {startPoolCron} from './config/cron-scheduler/cronConfig.js'
+import {startPoolCron} from './cron-scheduler/index.js'
 import { connectDB } from './config/db.js'
 import adminRouter from './routes/adminRoute.js'
 import userRouter from './routes/userRoute.js'
@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST
 
 app.use(cors(
-   { origin: ["http://localhost:5173","http://10.189.140.145:5173","http://localhost:5174"],
+   { origin: ["http://localhost:5173","http://10.36.147.145:5173","http://localhost:5174"],
     
     credentials: true
    }

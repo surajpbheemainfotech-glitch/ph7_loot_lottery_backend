@@ -1,11 +1,16 @@
 import express from 'express'
-import { declareResult, getPool } from '../controllers/poolsController.js'
+import {
+    getPool,
+    getResultWinnersByPoolName,
+    getUserResultById
+} from '../controllers/poolsController.js'
 
 
 const poolsRouter = express.Router()
 
 poolsRouter.get('/', getPool)
-poolsRouter.get("/result/:pool_name",declareResult)
+poolsRouter.get("/result/:title", getResultWinnersByPoolName)
+poolsRouter.get("/user-result/:id",getUserResultById)
 
 
 export default poolsRouter  

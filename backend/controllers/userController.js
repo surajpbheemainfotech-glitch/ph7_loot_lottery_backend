@@ -147,22 +147,6 @@ export const login = async (req, res) => {
 
 }
 
-export const fetchDummyUsers = async (limit) => {
-  if (!limit || limit <= 0) {
-    throw new Error("Valid limit is required");
-  }
-
-  const [users] = await db.execute(
-    `SELECT id, title, first_name, last_name, email, wallet
-     FROM users
-     WHERE role = 'dummy_user'
-     ORDER BY RAND()
-     LIMIT ?`,
-    [limit]
-  );
-
-  return users;
-};
 
 export const userDetailsById = async (req, res) => {
   try {
@@ -175,7 +159,6 @@ export const userDetailsById = async (req, res) => {
       });
     }
 
-    // 1) user
     const [userRows] = await db.execute(
       `SELECT id, title, first_name, last_name, email, role
        FROM users
@@ -192,7 +175,6 @@ export const userDetailsById = async (req, res) => {
 
     const user = userRows[0];
 
-   
     const [packageRows] = await db.execute(
       `SELECT
           up.id AS user_package_id,
@@ -215,7 +197,6 @@ export const userDetailsById = async (req, res) => {
       });
     }
 
- 
     const [ticketRows] = await db.execute(
       `SELECT id, user_number, ticket_amount, draw_number, pool_name, payment_status
        FROM tickets
@@ -223,25 +204,19 @@ export const userDetailsById = async (req, res) => {
       [userId]
     );
 
-    if (ticketRows.length === 0) {
-      return res.status(409).json({
-        success: false,
-        message: "Tickets are not available",
-      });
-    }
+    const tickets = ticketRows.length ? ticketRows : null;
 
-    // ✅ SAME RESPONSE SHAPE (no break)
     return res.status(200).json({
       success: true,
       message: "User Profile",
       data: {
         user,
-        package: packageRows,  // 👈 same key "package" but now array of all packages
-        tickets: ticketRows,
+        package: packageRows,
+        tickets,
       },
     });
   } catch (error) {
-    console.error("userDetailsByDetail error:", error);
+    console.error("userDetailsById error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error",
@@ -249,4 +224,5 @@ export const userDetailsById = async (req, res) => {
     });
   }
 };
+
 
