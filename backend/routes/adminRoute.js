@@ -30,9 +30,9 @@ adminRouter.delete("/pool/:id",authenticate,deletePoolById)
 
 // packages
 
-adminRouter.post("/add",authenticate,addPackage)
-adminRouter.get("/",authenticate,getPackages)
-adminRouter.patch("/update-package",authenticate, updatePackageById)
-adminRouter.delete("delete-package",authenticate,deletePackageById)
+adminRouter.post("/package/add",authenticate,addPackage)
+adminRouter.get("/package/",authenticate,getPackages)
+adminRouter.patch("/package/update-package/:id",authenticate, updatePackageById)
+adminRouter.delete("/package/delete-package/:id",authenticate,deletePackageById)
 
 export default adminRouter

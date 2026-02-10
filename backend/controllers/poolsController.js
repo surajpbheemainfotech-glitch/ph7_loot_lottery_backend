@@ -311,12 +311,11 @@ export const getUserResultById = async (req, res) => {
       });
     }
 
-    // Agar user nahi mila → random position
-    const randomPosition = Math.floor(Math.random() * 100) + 1;
+
 
     return res.status(200).json({
       success: true,
-      position: randomPosition,
+      position: 0,
       prize_amount: 0,
     });
 

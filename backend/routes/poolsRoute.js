@@ -10,6 +10,7 @@ const poolsRouter = express.Router()
 
 poolsRouter.get('/', getPool)
 poolsRouter.get("/result/:title", getResultWinnersByPoolName)
+poolsRouter.get("/result", getResultWinnersByPoolName)
 poolsRouter.get("/user-result/:id",getUserResultById)
 
 
