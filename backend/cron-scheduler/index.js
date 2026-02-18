@@ -9,11 +9,27 @@ export const startPoolCron = () => {
     async () => {
       console.log("🕒 Running pool maintenance job (every 6 hours, IST)...");
 
-      await poolExpireJob();        // active → expired
-      await declareResultsJob();    // create results + winners
-      await deleteExpirePool();     // delete expired pools safely (only if result exists)
+      await poolExpireJob();        
+      await declareResultsJob();    
+      await deleteExpirePool();     
 
       console.log("✅ Pool maintenance job done.\n");
+    },
+    {
+      timezone: "Asia/Kolkata",
+    }
+  );
+
+
+  // for otp table clear
+  cron.schedule(
+  "*/30 * * * *",
+    async () => {
+      console.log("🕒 Running OTP maintenance job (every 6 hours, IST)...");
+
+      await deleteExpiredOtps();   
+
+      console.log("✅ OTP maintenance job done.\n");
     },
     {
       timezone: "Asia/Kolkata",

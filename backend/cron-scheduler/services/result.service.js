@@ -41,7 +41,7 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
 
     // 1) Insert result
     const [resultInsert] = await conn.execute(
-  `INSERT INTO results (
+      `INSERT INTO results (
      pool_id,
      pool_title,
      jackpot,
@@ -49,12 +49,8 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
      created_at
    )
    VALUES (?, ?, ?, NOW(), NOW())`,
-  [
-    poolId,
-    title,       
-    jackpot ?? 0 
-  ]
-);
+      [poolId, title, totalPrize]
+    );
     const resultId = resultInsert.insertId;
 
     // 2) Real users (distinct)
@@ -91,28 +87,24 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
       );
     }
 
-    // 5) Pull tickets
+    // 5) Pull tickets (can be empty)
     const [tickets] = await conn.execute(
       `SELECT id AS ticket_id, user_id, user_number, draw_number
-       FROM tickets
-       WHERE pool_name = ?`,
+   FROM tickets
+   WHERE pool_name = ?`,
       [title]
     );
 
-    if (!tickets.length) {
-      throw new Error("No paid tickets found for this pool");
-    }
+    const hasTickets = Array.isArray(tickets) && tickets.length > 0;
 
     // 6) Candidates
-    const candidates = pickWinners(tickets);
+    const candidates = hasTickets ? pickWinners(tickets) : []; // ✅ safe now
     const dummyCandidates = dummyUserIds.map(id => ({ user_id: id, score: -1 }));
     const allCandidates = [...candidates, ...dummyCandidates];
 
-    if (!Array.isArray(candidates) || candidates.length < 1) {
-      throw new Error("At least 1 real user ticket is required to declare result");
-    }
+    // ✅ Ensure we can pick top 3 (dummy fill should guarantee this)
     if (allCandidates.length < 3) {
-      throw new Error("Not enough candidates (real + dummy) to declare top-3 winners");
+      throw new Error("Not enough candidates (need at least 3) to declare winners");
     }
 
     // 7) Add roles
@@ -123,7 +115,12 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
     }));
 
     // 8) Final winners top-3
-    const finalWinners = sortWinners(candidateWinners, realUserIds.length, 100);
+    // ✅ strict:false prevents errors when no real users exist
+    const finalWinners = sortWinners(candidateWinners, realUserIds.length, 100, {
+      strict: false,
+      preferHighScore: true,
+    });
+
 
     // 9) Save winners
     for (const w of finalWinners) {
@@ -155,7 +152,7 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
   } catch (err) {
     try {
       await conn.rollback();
-    } catch (_) {}
+    } catch (_) { }
     throw err;
   } finally {
     conn.release();

@@ -1,14 +1,14 @@
 import { calculateTicketScore } from "./calculateTicketScore.js";
 
 export function pickWinners(tickets, limit = 30) {
-  if (!tickets || tickets.length === 0) throw new Error("No tickets found");
+  // ✅ No tickets = no real candidates (NOT an error)
+  if (!Array.isArray(tickets) || tickets.length === 0) return [];
 
   const scoredTickets = tickets.map(t => ({
     ...t,
     score: calculateTicketScore(t.user_number, t.draw_number),
   }));
 
-  // score desc + random tie break
   scoredTickets.sort((a, b) => b.score - a.score || (Math.random() - 0.5));
 
   const winners = [];
@@ -22,5 +22,5 @@ export function pickWinners(tickets, limit = 30) {
     if (winners.length === limit) break;
   }
 
-  return winners; // array of many candidates
+  return winners;
 }

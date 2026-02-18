@@ -1,5 +1,5 @@
 import { db } from "../config/db.js";
-import generateTicketId from "../helper/ticketIdGenerator.js";
+import generateTicketId from "../helper/ticket.helper/ticketIdGenerator.js";
 
 
 export const buyTicket = async (req, res) => {
