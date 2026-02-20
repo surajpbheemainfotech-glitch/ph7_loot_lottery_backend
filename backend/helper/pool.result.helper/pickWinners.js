@@ -1,7 +1,6 @@
 import { calculateTicketScore } from "./calculateTicketScore.js";
 
 export function pickWinners(tickets, limit = 30) {
-  // ✅ No tickets = no real candidates (NOT an error)
   if (!Array.isArray(tickets) || tickets.length === 0) return [];
 
   const scoredTickets = tickets.map(t => ({

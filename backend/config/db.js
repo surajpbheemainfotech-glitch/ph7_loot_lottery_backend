@@ -1,11 +1,24 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import { logger } from "./loggers.js";
+
 dotenv.config();
 
-let db; 
+let db;
 
 export const connectDB = async () => {
+  const start = Date.now();
+
   try {
+    logger.info(
+      {
+        action: "db.init",
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+      },
+      "Initializing MySQL pool"
+    );
+
     db = mysql.createPool({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
@@ -16,13 +29,29 @@ export const connectDB = async () => {
       queueLimit: 0,
     });
 
-    await db.getConnection(); // test
-    console.log("✅ MySQL connected");
+    // Test connection
+    const connection = await db.getConnection();
+    connection.release();
 
-  } catch (error) {
-    console.error("❌ MySQL connection failed:", error.message);
-    process.exit(1);
+    logger.info(
+      {
+        action: "db.init_success",
+        durationMs: Date.now() - start,
+      },
+      "MySQL connected successfully"
+    );
+  } catch (err) {
+    logger.fatal(
+      {
+        action: "db.init_failed",
+        err,
+        durationMs: Date.now() - start,
+      },
+      "MySQL connection failed"
+    );
+
+    process.exit(1); 
   }
 };
 
-export { db }; 
+export { db };

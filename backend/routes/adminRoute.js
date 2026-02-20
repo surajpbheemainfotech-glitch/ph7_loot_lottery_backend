@@ -20,6 +20,7 @@ import {
 } from '../controllers/packageController.js'
 import upload from '../config/multerConfig.js'
 
+
 const adminRouter = express.Router()
 
 //admin login 
@@ -28,6 +29,7 @@ adminRouter.post("/login", loginController)
 adminRouter.post("/forget-password", forgetPasswordByAdminEmail)
 adminRouter.post("/verify-otp", verifyForgotPasswordAdminOtp)
 adminRouter.post("/reset-password", resetPasswordAdmin)
+
 
 //pools
 

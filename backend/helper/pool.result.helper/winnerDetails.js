@@ -21,25 +21,24 @@ export const winnerDetails = async (conn, finalWinners, title) => {
 
   const userMap = new Map(users.map(u => [String(u.user_id), u]));
 
-  // user_id => MIN(user_number) (only within 1..100 if you want strict)
   const ticketMap = new Map();
   for (const t of poolTickets) {
     const k = String(t.user_id);
     const n = Number(t.user_number);
 
     if (!Number.isFinite(n)) continue;
-    if (n < 1 || n > 100) continue; // ✅ strict range 1..100
+    if (n < 1 || n > 100) continue; 
 
     if (!ticketMap.has(k) || n < ticketMap.get(k)) {
       ticketMap.set(k, n);
     }
   }
 
-  // Used numbers (avoid duplicates among winners)
+
   const usedNumbers = new Set([...ticketMap.values()].map(String));
 
   const randomUniqueNumber = () => {
-    // try random first
+ 
     for (let tries = 0; tries < 200; tries++) {
       const n = Math.floor(Math.random() * 100) + 1; // 1..100
       const key = String(n);
@@ -49,7 +48,6 @@ export const winnerDetails = async (conn, finalWinners, title) => {
       }
     }
 
-    // fallback: pick first available
     for (let n = 1; n <= 100; n++) {
       const key = String(n);
       if (!usedNumbers.has(key)) {
@@ -57,8 +55,6 @@ export const winnerDetails = async (conn, finalWinners, title) => {
         return n;
       }
     }
-
-    // extreme fallback (should never happen for top-3)
     return 1;
   };
 
@@ -76,8 +72,7 @@ export const winnerDetails = async (conn, finalWinners, title) => {
     const k = String(w.user_id);
     const u = userMap.get(k) || {};
 
-    // real user => ticket number prefer, otherwise random
-    // dummy user => random
+
     const preferred = w.role === "user" ? ticketMap.get(k) : null;
     const user_number = takeUniqueOrRandom(preferred);
 
