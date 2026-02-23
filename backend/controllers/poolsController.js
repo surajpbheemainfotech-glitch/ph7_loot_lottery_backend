@@ -3,6 +3,13 @@ import { makeUniqueSlug, makeSlug } from "../helper/pool.helper/slugGenerator.js
 import fs from "fs";
 import path from "path";
 
+import { redisClient } from '../redis/redisClient.js'
+import {
+  POOLS_LIST_KEY,
+  POOLS_TTL_SECONDS,
+  addPoolsFields
+} from "../redis/cache/pool.cache.js";
+
 
 export const createPool = async (req, res) => {
   const start = Date.now();
@@ -76,6 +83,12 @@ export const createPool = async (req, res) => {
       [title, slug, price, jackpot || 0, imageUrl, startAtIST, expireAtIST]
     );
 
+    try {
+      await redisClient.del(POOLS_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "pool.create", e }, "Cache invalidate failed");
+    }
+
     const poolId = result?.insertId;
 
     req.log.info(
@@ -102,7 +115,31 @@ export const getPool = async (req, res) => {
   try {
     req.log.info({ action: "pool.list" }, "Get pools request");
 
-    const [rows] = await db.execute(`
+
+    //first check cache
+
+    try {
+      const cached = await redisClient.get(POOLS_LIST_KEY);
+
+      if (cached) {
+        const rawRows = JSON.parse(cached);
+        const rows = addPoolsFields(rawRows)
+
+        req.log.info(
+          { action: "pool.list", source: "redis", count: rows.length, durationMs: Date.now() - start },
+          "Pools fetched (cache hit)"
+        )
+
+        return res.status(200).json({ success: true, count: rows.length, data: rows, cached: true })
+      }
+      req.log.info({ action: "pool.list", source: "redis" }, "Cache miss");
+
+    } catch (redisErr) {
+      req.log.warn({ action: "pool.list", redisErr }, "Redis read failed, falling back to DB");
+    }
+
+
+    const [rawRows] = await db.execute(`
       SELECT
         id,
         title,
@@ -111,22 +148,24 @@ export const getPool = async (req, res) => {
         Imageurl,
         start_at,
         expire_at,
-        slug,
-        CASE
-          WHEN NOW() < start_at THEN 'upcoming'
-          WHEN NOW() >= start_at AND NOW() < expire_at THEN 'active'
-          ELSE 'expired'
-        END AS status,
-        UNIX_TIMESTAMP(start_at) * 1000  AS startAtMs,
-        UNIX_TIMESTAMP(expire_at) * 1000 AS expireAtMs,
-        UNIX_TIMESTAMP(NOW()) * 1000     AS serverNowMs
+        slug
       FROM pools
       ORDER BY start_at DESC
     `);
 
+    // Save cache
+
+    try {
+      await redisClient.set(POOLS_LIST_KEY, JSON.stringify(rawRows), { EX: POOLS_TTL_SECONDS })
+    } catch (redisErr) {
+      req.log.warn({ action: "pool.list", redisErr }, "Redis write failed (continuing without cache)");
+    }
+
+    const rows = addPoolsFields(rawRows);
+
     req.log.info(
-      { action: "pool.list", count: rows.length, durationMs: Date.now() - start },
-      "Pools fetched"
+      { action: "pool.list", source: "db", count: rows.length, durationMs: Date.now() - start },
+      "Pools fetched (cache miss -> DB)"
     );
 
     return res.status(200).json({ success: true, count: rows.length, data: rows });
@@ -198,6 +237,11 @@ export const updatePoolBySlug = async (req, res) => {
       ]
     );
 
+    try {
+      await redisClient.del(POOLS_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "pool.create", e }, "Cache invalidate failed");
+    }
     req.log.info(
       { action: "pool.update", oldSlug: slug, newSlug, durationMs: Date.now() - start },
       "Pool updated"
@@ -248,6 +292,12 @@ export const deletePoolById = async (req, res) => {
       });
     }
 
+    try {
+      await redisClient.del(POOLS_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "pool.create", e }, "Cache invalidate failed");
+    }
+
     req.log.info(
       { action: "pool.delete", poolId: id, durationMs: Date.now() - start },
       "Pool deleted"
@@ -262,7 +312,6 @@ export const deletePoolById = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 export const getResultWinnersByPoolName = async (req, res) => {
   const start = Date.now();
@@ -328,7 +377,7 @@ export const getResultWinnersByPoolName = async (req, res) => {
       message: "Result winners",
       data: {
         pool_name: result.pool_title,
-        jackpot: result.pool_jackpot, // ⚠️ note: your SELECT uses `jackpot` not `pool_jackpot`
+        jackpot: result.jackpot,
         declared_at: result.declared_at,
         winners,
       },
@@ -341,7 +390,6 @@ export const getResultWinnersByPoolName = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 export const getUserResultById = async (req, res) => {
   const start = Date.now();

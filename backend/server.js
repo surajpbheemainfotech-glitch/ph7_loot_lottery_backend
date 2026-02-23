@@ -38,7 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
 
-// ✅ logging middlewares (separate, not mixed)
+// logging middlewares 
 // app.use(requestId);
 app.use(httpLogger);
 

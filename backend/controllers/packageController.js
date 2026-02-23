@@ -1,5 +1,10 @@
 import { db } from "../config/db.js";
-
+import { redisClient } from "../redis/redisClient.js";
+import {
+  addPackageFeilds,
+  PACKAGE_TTL_SECONDS,
+  PACKAGE_LIST_KEY
+} from '../redis/cache/package.cache.js'
 
 export const addPackage = async (req, res, next) => {
   const start = Date.now();
@@ -25,6 +30,12 @@ export const addPackage = async (req, res, next) => {
       `INSERT INTO packages (package_name, package_price) VALUES (?, ?)`,
       [package_name, package_price]
     );
+
+    try {
+      await redisClient.del(PACKAGE_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "package.create", e }, "Cache invalidate failed");
+    }
 
     // MySQL insert id
     const packageId = result?.insertId;
@@ -53,11 +64,49 @@ export const getPackages = async (req, res) => {
 
   req.log.info({ action: "package.list" }, "Get packages request");
 
+  //cache 
+
   try {
-    const [rows] = await db.execute(`
+
+    const cached = await redisClient.get(PACKAGE_LIST_KEY);
+
+    if (cached) {
+      const rawRows = JSON.parse(cached);
+      const rows = addPackageFeilds(rawRows)
+
+      req.log.info(
+        { action: "package.list", source: "redis", count: rows.length, durationMs: Date.now() - start },
+        "Package fetched (cache hit)"
+      )
+
+      return res.status(200).json({
+        success: true,
+        count: rows.length,
+        data: rows,
+        cached: true
+      });
+    }
+
+    req.log.info({ action: "package.list", source: "redis" }, "Cache miss");
+  } catch (error) {
+    req.log.warn({ action: "package.list", redisErr }, "Redis read failed, falling back to DB");
+  }
+
+  try {
+    const [rawRows] = await db.execute(`
       SELECT id, package_name, package_price
       FROM packages
     `);
+
+    // Save cache
+
+    try {
+      await redisClient.set(PACKAGE_LIST_KEY, JSON.stringify(rawRows), { EX: PACKAGE_TTL_SECONDS })
+    } catch (redisErr) {
+      req.log.warn({ action: "package.list", redisErr }, "Redis write failed (continuing without cache)");
+    }
+
+    const rows = addPackageFeilds(rawRows);
 
     req.log.info(
       { action: "package.list", count: rows.length, durationMs: Date.now() - start },
@@ -111,6 +160,12 @@ export const updatePackageById = async (req, res) => {
       [newPackageName, newPackagePrice, id]
     );
 
+    try {
+      await redisClient.del(PACKAGE_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "package.create", e }, "Cache invalidate failed");
+    }
+
     req.log.info(
       { action: "package.update", packageId: id, durationMs: Date.now() - start },
       "Package updated"
@@ -147,6 +202,12 @@ export const deletePackageById = async (req, res) => {
     }
 
     await db.execute(`DELETE FROM packages WHERE id = ?`, [id]);
+
+    try {
+      await redisClient.del(PACKAGE_LIST_KEY);
+    } catch (e) {
+      req.log.warn({ action: "package.create", e }, "Cache invalidate failed");
+    }
 
     req.log.info(
       { action: "package.delete", packageId: id, durationMs: Date.now() - start },
