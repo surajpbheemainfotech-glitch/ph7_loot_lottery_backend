@@ -53,7 +53,6 @@ app.use("/api/package", packageRouter);
 
 app.use(uploadErrorHandler);
 
-// health
 app.get("/", (req, res) => {
   req.log.info({ route: "/" }, "Health check");
   res.send(`server is running on ${PORT}..`);

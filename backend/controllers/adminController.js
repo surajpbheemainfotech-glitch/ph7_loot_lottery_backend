@@ -44,7 +44,8 @@ export const loginController = async (req, res) => {
 
     const user = rows[0];
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = password == user.password
 
     if (!isMatch) {
       req.log.warn(

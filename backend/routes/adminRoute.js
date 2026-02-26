@@ -19,6 +19,7 @@ import {
     updatePackageById
 } from '../controllers/packageController.js'
 import upload from '../config/multerConfig.js'
+import { getAllWithdrawRequests } from '../controllers/paymentController.js'
 
 
 const adminRouter = express.Router()
@@ -44,5 +45,9 @@ adminRouter.post("/package/add", authenticate, addPackage)
 adminRouter.get("/package/", authenticate, getPackages)
 adminRouter.patch("/package/update-package/:id", authenticate, updatePackageById)
 adminRouter.delete("/package/delete-package/:id", authenticate, deletePackageById)
+
+//withdraw requests
+
+adminRouter.post("/get-withdraw-requests",authenticate,getAllWithdrawRequests)
 
 export default adminRouter

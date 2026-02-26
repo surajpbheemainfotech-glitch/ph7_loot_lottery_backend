@@ -103,6 +103,11 @@ export const buyTicket = async (req, res) => {
     const updatedWallet = wallet - ticket_amount;
 
     await connection.execute(
+      `INSERT INTO temporary_wallet VALUES(user_id, amount)`,
+      [userId, ticket_amount]
+    );
+
+    await connection.execute(
       `UPDATE users SET wallet = ? WHERE id = ?`,
       [updatedWallet, userId]
     );
