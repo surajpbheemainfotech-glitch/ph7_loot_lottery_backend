@@ -48,6 +48,6 @@ adminRouter.delete("/package/delete-package/:id", authenticate, deletePackageByI
 
 //withdraw requests
 
-adminRouter.post("/get-withdraw-requests",authenticate,getAllWithdrawRequests)
+adminRouter.get("/get-withdraw-requests",authenticate,getAllWithdrawRequests)
 
 export default adminRouter

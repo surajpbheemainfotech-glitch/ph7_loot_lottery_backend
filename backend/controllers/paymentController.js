@@ -1,6 +1,9 @@
 import crypto from "crypto";
-import {db} from '../config/db.js'
-import Razorpay from "../config/razurpayConfig.js";
+import { db } from '../config/db.js'
+import razorpayInstance, { rzpx } from "../config/razurpayConfig.js";
+import buildWithdrawRequestAdminEmail from "../helper/nodeMailer.helper/builders/buildWithdrawRequestAdminEmail.js"
+import buildWithdrawStatusUserEmail from "../helper/nodeMailer.helper/builders/buildWithdrawStatusUserEmail.js"
+import sendEmail from "../helper/nodeMailer.helper/sendEmail.js";
 
 export const createOrder = async (req, res) => {
   const start = Date.now();
@@ -29,8 +32,8 @@ export const createOrder = async (req, res) => {
       receipt,
     };
 
-   
-    const order = await Razorpay.orders.create(options);
+
+    const order = await razorpayInstance.orders.create(options);
 
     await db.query(
       `INSERT INTO payments (user_id, razorpay_order_id, amount, currency, status, receipt)
@@ -258,12 +261,39 @@ export const requestWithdrawAmount = async (req, res) => {
       "Withdraw request stored"
     );
 
+    const { subject, html, text } = buildWithdrawRequestAdminEmail({
+      appName: process.env.APP_NAME,
+      withdrawId: result.insertId,
+      userName: user.first_name,
+      userEmail: user.email,
+      amount: amt,
+      method,
+      upiId: upi_id,
+      bankAccount: bank_account,
+      ifsc,
+      accountHolder: account_holder,
+      status: "PENDING",
+      dashboardUrl: process.env.ADMIN_DASHBOARD_URL,
+    });
+
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject,
+      html,
+      text,
+    });
+
     return res.status(201).json({
       success: true,
       withdrawId: result.insertId,
       message: "Request sent to admin",
     });
   } catch (err) {
+    req.log?.error({
+  url: apiErr?.config?.baseURL + apiErr?.config?.url,
+  status: apiErr?.response?.status,
+  data: apiErr?.response?.data
+}, "RZPX error debug");
     req.log.error(
       {
         action: "withdraw.request.crashed",
@@ -274,6 +304,8 @@ export const requestWithdrawAmount = async (req, res) => {
       },
       "Withdraw request crashed"
     );
+
+    
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -321,69 +353,120 @@ export const getAllWithdrawRequests = async (req, res) => {
 
 export const approveWithdrawRequest = async (req, res) => {
   const start = Date.now();
-  const { withdrawId, adminId } = req.body;
-
+  const { withdrawId, adminId, status, adminNote = "" } = req.body;
+  console.log(adminId)
   req.log?.info(
-    { action: "withdraw.approve.start", withdrawId, adminId },
+    { action: "withdraw.approve.start", withdrawId, adminId, status },
     "Admin approval started"
   );
 
   try {
-    if (!withdrawId || !adminId) {
+    if (!withdrawId || !adminId || !status) {
       return res.status(400).json({
         success: false,
-        message: "withdrawId and adminId required",
+        message: "withdrawId, status and adminId required",
       });
     }
 
-    const [admin] = await db.execute(
-      "SELECT id, status FROM admin WHERE id=?",
+    const allowedStatus = ["APPROVED", "REJECTED"];
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be either APPROVED or REJECTED",
+      });
+    }
+
+    // 1) Validate admin exists (and optionally active)
+    const [adminRows] = await db.execute(
+      "SELECT email FROM admin WHERE id=?",
       [adminId]
     );
 
-    const [rows] = await db.execute(
+    if (!adminRows.length) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    // 2) Ensure withdraw exists and is pending
+    const [wrRows] = await db.execute(
       "SELECT id, status FROM withdraw_requests WHERE id=?",
       [withdrawId]
     );
 
-    if(!admin.length){
-       return res.status(404).json({ success: false, message: "Access denied" });
-    }
-
-    if (!rows.length ) {
-      return res.status(404).json({ success: false, message: "Request not found" });
-    }
-
-    if (rows[0].status !== "PENDING") {
-      return res.status(400).json({
+    if (!wrRows.length) {
+      return res.status(404).json({
         success: false,
-        message: `Already ${rows[0].status}`,
+        message: "Request not found",
       });
     }
 
-    await db.execute(
-      `UPDATE withdraw_requests 
-       SET status='APPROVED'
-       WHERE id=?`,
-      [ withdrawId]
+    if (wrRows[0].status !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: `Already ${wrRows[0].status}`,
+      });
+    }
+
+    // 3) Build update fields based on status
+    const approvedAt = status === "APPROVED" ? new Date() : null;
+    const rejectedAt = status === "REJECTED" ? new Date() : null;
+
+    // 4) Update (only if PENDING) — prevents double approval race condition
+    const [result] = await db.execute(
+      `UPDATE withdraw_requests
+       SET 
+         status = ?,
+         admin_note = ?,
+         approved_by = ?,
+         approved_at = ?,
+         rejected_at = ?
+       WHERE id = ? AND status = 'PENDING'`,
+      [status, adminNote || null, adminId, approvedAt, rejectedAt, withdrawId]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Request already processed",
+      });
+    }
 
     req.log?.info(
       {
         action: "withdraw.approve.success",
         withdrawId,
+        status,
+        adminId,
         durationMs: Date.now() - start,
       },
-      "Withdraw approved"
+      "Withdraw status updated"
     );
 
-    return res.json({ success: true, message: "Withdraw approved" });
+    const { subject, html, text } = buildWithdrawStatusUserEmail({
+      name:  "user",
+      withdrawId,
+      amount: wrRows.amount,
+      status: "APPROVED",
+      adminNote: "Processed successfully.",
+    });
+
+    await sendEmail({ to:  "shrivastavasahil759@gmail.com", subject, html, text });
+
+    return res.json({
+      success: true,
+      message: `Withdraw ${status.toLowerCase()} successfully`,
+    });
   } catch (err) {
     req.log?.error(
-      { action: "withdraw.approve.crashed", error: err.message },
+      { action: "withdraw.approve.crashed", error: err.message, stack: err.stack },
       "Approve crashed"
     );
-    return res.status(500).json({ success: false });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -434,7 +517,7 @@ export const executeWithdrawPayout = async (req, res) => {
 
     // 3) lock user
     const [users] = await conn.execute(
-      "SELECT id, wallet, name, email, phone FROM users WHERE id=? FOR UPDATE",
+      "SELECT id, wallet,first_name, email FROM users WHERE id=? FOR UPDATE",
       [wr.user_id]
     );
 
@@ -484,54 +567,56 @@ export const executeWithdrawPayout = async (req, res) => {
     // 6) payout payload
     const idempotencyKey = crypto.randomUUID();
 
+    const DEFAULT_PHONE = "9999999999";
+
     const payoutPayload =
       wr.method === "bank"
         ? {
-            account_number: process.env.RZP_X_ACCOUNT_NUMBER,
-            amount: Math.round(amt * 100),
-            currency: "INR",
-            mode: "IMPS",
-            purpose: "payout",
-            queue_if_low_balance: true,
-            reference_id: `withdraw_${withdrawId}`,
-            narration: "Withdrawal",
-            fund_account: {
-              account_type: "bank_account",
-              bank_account: {
-                name: wr.account_holder,
-                ifsc: wr.ifsc,
-                account_number: wr.bank_account,
-              },
-              contact: {
-                name: user.name || "User",
-                email: user.email || undefined,
-                contact: user.phone || undefined,
-                type: "customer",
-                reference_id: `user_${wr.user_id}`,
-              },
+          account_number: process.env.RAZORPAY_ACCOUNT_NUMBER,
+          amount: Math.round(amt * 100),
+          currency: "INR",
+          mode: "IMPS",
+          purpose: "payout",
+          queue_if_low_balance: true,
+          reference_id: `withdraw_${withdrawId}`,
+          narration: "Withdrawal",
+          fund_account: {
+            account_type: "bank_account",
+            bank_account: {
+              name: wr.account_holder,
+              ifsc: wr.ifsc,
+              account_number: wr.bank_account,
             },
-          }
+            contact: {
+              name: user.first_name || "User",
+              email: user.email,
+              contact: DEFAULT_PHONE,
+              type: "customer",
+              reference_id: `user_${wr.user_id}`,
+            },
+          },
+        }
         : {
-            account_number: process.env.RZP_X_ACCOUNT_NUMBER,
-            amount: Math.round(amt * 100),
-            currency: "INR",
-            mode: "UPI",
-            purpose: "payout",
-            queue_if_low_balance: true,
-            reference_id: `withdraw_${withdrawId}`,
-            narration: "Withdrawal",
-            fund_account: {
-              account_type: "vpa",
-              vpa: { address: wr.upi_id },
-              contact: {
-                name: user.name || "User",
-                email: user.email || undefined,
-                contact: user.phone || undefined,
-                type: "customer",
-                reference_id: `user_${wr.user_id}`,
-              },
+          account_number: process.env.RZP_X_ACCOUNT_NUMBER,
+          amount: Math.round(amt * 100),
+          currency: "INR",
+          mode: "UPI",
+          purpose: "payout",
+          queue_if_low_balance: true,
+          reference_id: `withdraw_${withdrawId}`,
+          narration: "Withdrawal",
+          fund_account: {
+            account_type: "vpa",
+            vpa: { address: wr.upi_id },
+            contact: {
+              name: user.first_name || "User",
+              email: user.email,
+              contact: DEFAULT_PHONE,   // ✅ REQUIRED
+              type: "customer",
+              reference_id: `user_${wr.user_id}`,
             },
-          };
+          },
+        };
 
     req.log?.info(
       {
@@ -547,17 +632,24 @@ export const executeWithdrawPayout = async (req, res) => {
     // 7) call payout
     let payout;
     try {
-      payout = await Razorpay.payouts.create(payoutPayload, {
+      const resp = await rzpx.post("/v1/payouts", payoutPayload, {
         headers: {
           "X-Payout-Idempotency": idempotencyKey,
         },
       });
+
+      payout = resp.data;
     } catch (apiErr) {
-      // payout fail => refund wallet + mark FAILED
+      const apiMsg =
+        apiErr?.response?.data?.error?.description ||
+        apiErr?.response?.data?.error?.message ||
+        apiErr?.message ||
+        "Payout API failed";
+
       await conn.execute("UPDATE users SET wallet = wallet + ? WHERE id=?", [amt, wr.user_id]);
       await conn.execute(
         "UPDATE withdraw_requests SET status='FAILED', failure_reason=? WHERE id=?",
-        [apiErr?.message || "Payout API failed", withdrawId]
+        [apiMsg, withdrawId]
       );
 
       await conn.commit();
@@ -566,13 +658,19 @@ export const executeWithdrawPayout = async (req, res) => {
         {
           action: "withdraw.execute.payout_failed",
           withdrawId,
-          error: apiErr?.message,
+          error: apiMsg,
+          razorpayError: apiErr?.response?.data,
           durationMs: Date.now() - start,
         },
         "Razorpay payout failed"
       );
 
-      return res.status(500).json({ success: false, message: "Payout failed", error: apiErr?.message });
+      return res.status(500).json({
+        success: false,
+        message: "Payout failed",
+        error: apiMsg,
+      });
+
     }
 
     // 8) success => mark success
@@ -603,7 +701,7 @@ export const executeWithdrawPayout = async (req, res) => {
   } catch (err) {
     try {
       await conn.rollback();
-    } catch {}
+    } catch { }
 
     req.log?.error(
       {
@@ -619,4 +717,4 @@ export const executeWithdrawPayout = async (req, res) => {
   } finally {
     conn.release();
   }
-};
+};  

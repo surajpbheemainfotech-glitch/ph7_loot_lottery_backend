@@ -18,7 +18,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"Node Mailer" <${process.env.GMAIL_USER}>`,
+      from: `${process.env.APP_NAME} Support <${process.env.GMAIL_USER}>`,
       to,
       subject,
       text,

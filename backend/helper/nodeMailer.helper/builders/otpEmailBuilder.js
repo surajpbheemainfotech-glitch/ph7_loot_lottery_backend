@@ -1,4 +1,4 @@
-import renderTemplate from "./renderTemplate/renderTemplate.js"; 
+import renderTemplate from "../renderTemplate/renderTemplate.js";
 
 const buildForgotPasswordOtpEmail = ({
   name,
@@ -6,16 +6,20 @@ const buildForgotPasswordOtpEmail = ({
   role = "user",
   expiryMinutes = 5,
 }) => {
+  const appName = process.env.APP_NAME || "My App";
+  const year = new Date().getFullYear();
+
   const purpose = "Forgot Password";
-  const roleLabel = role === "admin" ? "Admin" : "User";
+  const roleKey = String(role || "user").toLowerCase();
+  const roleLabel = roleKey === "admin" ? "Admin" : "User";
 
   const subject =
-    role === "admin"
+    roleKey === "admin"
       ? `Admin OTP for ${purpose}`
       : `Your OTP for ${purpose}`;
 
   const adminNote =
-    role === "admin"
+    roleKey === "admin"
       ? `
       <div style="margin-top:12px;padding:10px;border:1px solid #fca5a5;
                   background:#fef2f2;border-radius:6px;
@@ -27,24 +31,24 @@ const buildForgotPasswordOtpEmail = ({
       : "";
 
   const html = renderTemplate("otp.html", {
-    appName: process.env.APP_NAME || "My App",
-    year: new Date().getFullYear(),
+    appName,
+    year,
     name: name || "User",
-    otp,
+    otp: String(otp ?? ""),
     roleLabel,
     purpose,
     expiryMinutes,
-    adminNote, // ✅ injected into {{adminNote}}
+    adminNote, // otp.html must use {{{adminNote}}}
   });
 
-  const text = `${process.env.APP_NAME || "My App"} OTP
+  const text = `${appName} OTP
 
 Hello ${name || "User"},
-Your ${purpose} OTP for ${roleLabel} access is: ${otp}
+Your ${purpose} OTP for ${roleLabel} access is: ${String(otp ?? "")}
 Expires in ${expiryMinutes} minutes.
 
 ${
-  role === "admin"
+  roleKey === "admin"
     ? "WARNING: Admin password reset requested. If this wasn't you, secure your account immediately."
     : ""
 }

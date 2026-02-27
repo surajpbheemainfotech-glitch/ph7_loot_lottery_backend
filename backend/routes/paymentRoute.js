@@ -15,5 +15,4 @@ paymentRoute.post("/withdraw-request",requestWithdrawAmount)
 paymentRoute.post("/withdraw-approve",approveWithdrawRequest)
 paymentRoute.post("/withdraw-payout",executeWithdrawPayout)
 
-
 export default paymentRoute

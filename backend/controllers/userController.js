@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import JWT from 'jsonwebtoken'
 import { db } from '../config/db.js'
-import buildForgotPasswordOtpEmail from '../helper/nodeMailer.helper/otpEmailBuilder.js';
+import buildForgotPasswordOtpEmail from '../helper/nodeMailer.helper/builders/otpEmailBuilder.js';
 import sendEmail from '../helper/nodeMailer.helper/sendEmail.js';
 import { createOtp } from "../helper/otp.helper/otpService.js"
 import { verifyOtp } from "../helper/otp.helper/otpService.js"

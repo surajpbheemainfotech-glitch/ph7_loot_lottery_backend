@@ -53,8 +53,8 @@ app.use("/api/package", packageRouter);
 
 app.use(uploadErrorHandler);
 
-app.get("/", (req, res) => {
-  req.log.info({ route: "/" }, "Health check");
+app.get("/",async (req, res) => {
+  req.log.info({ route: "/" }, "Health check"); 
   res.send(`server is running on ${PORT}..`);
 });
 
@@ -65,7 +65,7 @@ async function start() {
   try {
     await connectDB();
     await connectRedis();
-    await Schedulers();
+    // await Schedulers();
 
     const server = app.listen(PORT, HOST, () => {
 

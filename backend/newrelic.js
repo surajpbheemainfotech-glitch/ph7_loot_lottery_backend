@@ -2,7 +2,7 @@
 
 export const config = {
   app_name: ['Loot Lottery Backend'],
-  license_key: "84c3988aac5d33a9e6dfad3a41721746FFFFNRAL",
+  license_key: process.env.NEWRELIC_LICENSE_KEY,
   logging: {
     level: 'info',
   },

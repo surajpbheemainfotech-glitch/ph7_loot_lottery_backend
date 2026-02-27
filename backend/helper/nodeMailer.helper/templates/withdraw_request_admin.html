@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7fb;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7fb;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
+
+            <!-- Header -->
+            <tr>
+              <td style="padding:22px 24px;background:#111827;color:#ffffff;">
+                <div style="font-family:Arial,sans-serif;font-size:18px;font-weight:700;">
+                  {{appName}}
+                </div>
+                <div style="font-family:Arial,sans-serif;font-size:12px;opacity:.85;margin-top:4px;">
+                  New Withdrawal Request
+                </div>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding:22px 24px;font-family:Arial,sans-serif;color:#111827;">
+                <div style="font-size:14px;margin-bottom:10px;">
+                  Hello Admin,
+                </div>
+
+                <div style="font-size:14px;line-height:1.6;margin-bottom:14px;">
+                  A new withdrawal request has been submitted. Please review details below:
+                </div>
+
+                <!-- Details Card -->
+                <table width="100%" cellpadding="0" cellspacing="0"
+                  style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;">
+
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>Withdraw ID:</b> {{withdrawId}}</td></tr>
+
+                  {{#if userName}}
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>User:</b> {{userName}}{{#if userEmail}} ({{userEmail}}){{/if}}</td></tr>
+                  {{else}}
+                  {{#if userEmail}}
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>User:</b> {{userEmail}}</td></tr>
+                  {{/if}}
+                  {{/if}}
+
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>Amount:</b> ₹{{amount}}</td></tr>
+
+                  {{#if method}}
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>Method:</b> {{method}}</td></tr>
+                  {{/if}}
+
+                  <!-- Method-specific fields:
+                       Pass these booleans from backend for best reliability:
+                       isUpi=true/false, isBank=true/false
+                  -->
+
+                  {{#if isUpi}}
+                    {{#if upiId}}
+                    <tr><td style="padding:6px 0;font-size:13px;"><b>UPI ID:</b> {{upiId}}</td></tr>
+                    {{/if}}
+                  {{/if}}
+
+                  {{#if isBank}}
+                    {{#if bankAccount}}
+                    <tr><td style="padding:6px 0;font-size:13px;"><b>Bank Account:</b> {{bankAccount}}</td></tr>
+                    {{/if}}
+
+                    {{#if ifsc}}
+                    <tr><td style="padding:6px 0;font-size:13px;"><b>IFSC:</b> {{ifsc}}</td></tr>
+                    {{/if}}
+
+                    {{#if accountHolder}}
+                    <tr><td style="padding:6px 0;font-size:13px;"><b>Account Holder:</b> {{accountHolder}}</td></tr>
+                    {{/if}}
+                  {{/if}}
+
+                  {{#if status}}
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>Status:</b> {{status}}</td></tr>
+                  {{/if}}
+
+                  {{#if requestDate}}
+                  <tr><td style="padding:6px 0;font-size:13px;"><b>Requested At:</b> {{requestDate}}</td></tr>
+                  {{/if}}
+                </table>
+
+                <!-- Button -->
+                {{#if dashboardUrl}}
+                <div style="text-align:center;margin:22px 0;">
+                  <a href="{{dashboardUrl}}"
+                    style="display:inline-block;background:#111827;color:#ffffff;
+                           padding:12px 18px;font-size:14px;
+                           text-decoration:none;border-radius:8px;font-weight:600;">
+                    Review in Admin Dashboard
+                  </a>
+                </div>
+                {{/if}}
+
+                <div style="font-size:12px;color:#6b7280;line-height:1.6;">
+                  Please approve/reject from the official admin dashboard only.
+                </div>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:14px 24px;background:#f9fafb;font-family:Arial,sans-serif;font-size:11px;color:#6b7280;">
+                © {{year}} {{appName}}. All rights reserved.
+              </td>
+            </tr>
+
+          </table>
+
+          <div style="font-family:Arial,sans-serif;font-size:11px;color:#9ca3af;margin-top:10px;">
+            This is an automated message — please don’t reply.
+          </div>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
