@@ -1,6 +1,6 @@
 import renderTemplate from "../renderTemplate/renderTemplate.js";
 
-const buildForgotPasswordOtpEmail = ({
+export const buildForgotPasswordOtpEmail = ({
   name,
   otp,
   role = "user",

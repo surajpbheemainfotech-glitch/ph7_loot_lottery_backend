@@ -5,8 +5,7 @@ import { logger } from "../../config/logger.js";
 
 import { poolExpireJob } from "../../scheduler/jobs/poolExpire.job.js";
 import { declareResultsJob } from "../../scheduler/jobs/declareResult.job.js";
-import { deleteExpirePool } from "../../scheduler/services/pool.service.js";
-
+import { composePools } from "../../scheduler/jobs/dailyCreateDelete.job.js";
 
 import { deleteExpiredOtps } from "../../scheduler/services/otp.service.js";
 
@@ -30,7 +29,7 @@ const worker = new Worker(
       if (job.name === "pool-maintenance") {
         await poolExpireJob();
         await declareResultsJob();
-        await deleteExpirePool();
+        await composePools();
 
         logger.info(
           {
@@ -60,6 +59,13 @@ const worker = new Worker(
           "OTP cleanup job completed"
         );
 
+        return { ok: true };
+      }
+
+      if (job.name === "mail-cleanup") {
+        const CLEAN_BEFORE_MS = 24 * 60 * 60 * 1000; 
+        await mailQueue.clean(CLEAN_BEFORE_MS, 500, "completed");
+        await mailQueue.clean(CLEAN_BEFORE_MS, 500, "failed");
         return { ok: true };
       }
 

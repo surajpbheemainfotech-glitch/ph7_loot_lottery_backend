@@ -13,12 +13,16 @@ import uploadErrorHandler from "./middlewares/multerMiddleware.js";
 import ticketRoute from "./routes/ticketRoute.js";
 import paymentRoute from "./routes/paymentRoute.js";
 import packageRouter from "./routes/packageRoute.js";
-import { connectRedis } from "./redis/redisClient.js";
-import { Schedulers } from "./queues/queue/maintenance.scheduler.js";
 
-import { requestId, httpLogger  } from "./middlewares/logger.middlewares/logger-middleware.js";
 import { errorHandler } from "./middlewares/errorHandlerMiddleware.js";
+
+
+import { connectRedis } from "./redis/redisClient.js";
+import { registerSchedulers } from "./scheduler/bullmq.scheduler.js";
+
+import { requestId, httpLogger } from "./middlewares/logger.middlewares/logger-middleware.js";
 import { logger } from "./config/loggers.js";
+import { mailWorker } from "./queues/workers/mail.worker.js";
 
 dotenv.config();
 
@@ -39,7 +43,7 @@ app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
 
 // logging middlewares 
-// app.use(requestId);
+app.use(requestId);
 app.use(httpLogger);
 
 // routes
@@ -53,27 +57,29 @@ app.use("/api/package", packageRouter);
 
 app.use(uploadErrorHandler);
 
-app.get("/",async (req, res) => {
-  req.log.info({ route: "/" }, "Health check"); 
+app.get("/", async (req, res) => {
+  req.log.info({ route: "/" }, "Health check");
   res.send(`server is running on ${PORT}..`);
 });
 
-// ✅ central error handler (last)
 app.use(errorHandler);
 
 async function start() {
   try {
     await connectDB();
     await connectRedis();
-    // await Schedulers();
+    await registerSchedulers();
 
     const server = app.listen(PORT, HOST, () => {
 
-      // logger.info(
-      //   { host: HOST || "localhost", port: PORT },
-      //   "Server started"
-      // );
+      logger.info(
+        { host: HOST || "localhost", port: PORT },
+        "Server started"
+      );
     });
+
+    mailWorker.on("ready", () => console.log("✅ mail.worker ready"));
+mailWorker.on("error", (e) => console.error("❌ mail.worker error", e));
 
     process.on("SIGINT", () => server.close(() => process.exit(0)));
     process.on("SIGTERM", () => server.close(() => process.exit(0)));

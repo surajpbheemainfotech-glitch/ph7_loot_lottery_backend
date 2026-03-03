@@ -1,10 +1,9 @@
 import { db } from "../config/db.js";
 import JWT from 'jsonwebtoken'
 import bcrypt from "bcryptjs"
-import {createOtp} from "../helper/otp.helper/otpService.js"
-import buildForgotPasswordOtpEmail from "../helper/nodeMailer.helper/builders/otpEmailBuilder.js"
-import sendEmail from "../helper/nodeMailer.helper/sendEmail.js"
-import {verifyOtp} from "../helper/otp.helper/otpService.js"
+import { createOtp } from "../helper/otp.helper/otpService.js"
+import { enqueueMail } from "../queues/services/mail.service.js"
+import { verifyOtp } from "../helper/otp.helper/otpService.js"
 
 export const loginController = async (req, res) => {
   const start = Date.now();
@@ -44,8 +43,8 @@ export const loginController = async (req, res) => {
 
     const user = rows[0];
 
-    // const isMatch = await bcrypt.compare(password, user.password);
-    const isMatch = password == user.password
+    const isMatch = await bcrypt.compare(password, user.password);
+  
 
     if (!isMatch) {
       req.log.warn(
@@ -129,14 +128,14 @@ export const forgetPasswordByAdminEmail = async (req, res) => {
       "OTP generated"
     );
 
-    const { subject, html, text } = buildForgotPasswordOtpEmail({
-      name: admin.name || "Admin",
-      otp,
-      role: "admin",
-      expiryMinutes: ttlMinutes,
+    await enqueueMail({
+      type: "FORGOT_OTP",
+      to: email,
+      payload: { name: "admin", otp, expiryMinutes: 5 },
+      meta: { purpose: "forgot_password", userId: admin.id },
+      jobId: `otp:${email}:${Date.now()}`,
+      priority: 1,
     });
-
-    await sendEmail({ to: email, subject, html, text });
 
     req.log.info(
       { action: "admin.forgot_password", adminId: admin.id, durationMs: Date.now() - start },
@@ -191,7 +190,7 @@ export const verifyForgotPasswordAdminOtp = async (req, res) => {
     const result = await verifyOtp({
       email,
       purpose: "admin_forgot_password",
-      otp, 
+      otp,
     });
 
     if (!result.ok) {

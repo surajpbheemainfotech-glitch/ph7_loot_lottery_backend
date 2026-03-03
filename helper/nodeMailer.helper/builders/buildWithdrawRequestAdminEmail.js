@@ -1,6 +1,6 @@
 import renderTemplate from "../renderTemplate/renderTemplate.js";
 
-const buildWithdrawRequestAdminEmail = ({
+export const buildWithdrawRequestAdminEmail = ({
   withdrawId,
   userName,
   userEmail,

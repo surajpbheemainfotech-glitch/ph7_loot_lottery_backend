@@ -1,9 +1,7 @@
 import crypto from "crypto";
 import { db } from '../config/db.js'
 import razorpayInstance, { rzpx } from "../config/razurpayConfig.js";
-import buildWithdrawRequestAdminEmail from "../helper/nodeMailer.helper/builders/buildWithdrawRequestAdminEmail.js"
-import buildWithdrawStatusUserEmail from "../helper/nodeMailer.helper/builders/buildWithdrawStatusUserEmail.js"
-import sendEmail from "../helper/nodeMailer.helper/sendEmail.js";
+import { enqueueMail } from "../queues/services/mail.service.js"
 
 export const createOrder = async (req, res) => {
   const start = Date.now();
@@ -261,26 +259,15 @@ export const requestWithdrawAmount = async (req, res) => {
       "Withdraw request stored"
     );
 
-    const { subject, html, text } = buildWithdrawRequestAdminEmail({
-      appName: process.env.APP_NAME,
-      withdrawId: result.insertId,
-      userName: user.first_name,
-      userEmail: user.email,
-      amount: amt,
-      method,
-      upiId: upi_id,
-      bankAccount: bank_account,
-      ifsc,
-      accountHolder: account_holder,
-      status: "PENDING",
-      dashboardUrl: process.env.ADMIN_DASHBOARD_URL,
-    });
+    let withdrawId = result.insertId
 
-    await sendEmail({
+    await enqueueMail({
+      type: "WITHDRAW_REQUEST_ADMIN",
       to: process.env.ADMIN_EMAIL,
-      subject,
-      html,
-      text,
+      payload: { userEmail: user.email, amount, withdrawId },
+      meta: { withdrawId, userId: user.id },
+      jobId: `withdraw_admin${withdrawId}`,
+      priority: 1,
     });
 
     return res.status(201).json({
@@ -289,11 +276,6 @@ export const requestWithdrawAmount = async (req, res) => {
       message: "Request sent to admin",
     });
   } catch (err) {
-    req.log?.error({
-  url: apiErr?.config?.baseURL + apiErr?.config?.url,
-  status: apiErr?.response?.status,
-  data: apiErr?.response?.data
-}, "RZPX error debug");
     req.log.error(
       {
         action: "withdraw.request.crashed",
@@ -305,7 +287,7 @@ export const requestWithdrawAmount = async (req, res) => {
       "Withdraw request crashed"
     );
 
-    
+
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -389,9 +371,9 @@ export const approveWithdrawRequest = async (req, res) => {
       });
     }
 
-    // 2) Ensure withdraw exists and is pending
+
     const [wrRows] = await db.execute(
-      "SELECT id, status FROM withdraw_requests WHERE id=?",
+      "SELECT id, user_id, status FROM withdraw_requests WHERE id=?",
       [withdrawId]
     );
 
@@ -402,6 +384,18 @@ export const approveWithdrawRequest = async (req, res) => {
       });
     }
 
+    const [userRows] = await db.execute(
+      "SELECT first_name, email FROM users WHERE id=?",
+      [wrRows[0].user_id]
+    );
+    if (!userRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    const user = userRows[0]
     if (wrRows[0].status !== "PENDING") {
       return res.status(400).json({
         success: false,
@@ -444,15 +438,14 @@ export const approveWithdrawRequest = async (req, res) => {
       "Withdraw status updated"
     );
 
-    const { subject, html, text } = buildWithdrawStatusUserEmail({
-      name:  "user",
-      withdrawId,
-      amount: wrRows.amount,
-      status: "APPROVED",
-      adminNote: "Processed successfully.",
+    await enqueueMail({
+      type: "WITHDRAW_STATUS_USER",
+      to: user.email,
+      meta: { withdrawId, userId: wrRows[0].user_id },
+      payload: { name: user.first_name, withdrawId, status },
+      jobId: `withdraw_status:${withdrawId}:${status}`,
+      priority: 3,
     });
-
-    await sendEmail({ to:  "shrivastavasahil759@gmail.com", subject, html, text });
 
     return res.json({
       success: true,

@@ -8,7 +8,7 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const buildWithdrawStatusUserEmail = ({
+export const buildWithdrawStatusUserEmail = ({
   name,
   withdrawId,
   amount,

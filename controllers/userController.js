@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs'
 import JWT from 'jsonwebtoken'
 import { db } from '../config/db.js'
-import buildForgotPasswordOtpEmail from '../helper/nodeMailer.helper/builders/otpEmailBuilder.js';
-import sendEmail from '../helper/nodeMailer.helper/sendEmail.js';
 import { createOtp } from "../helper/otp.helper/otpService.js"
 import { verifyOtp } from "../helper/otp.helper/otpService.js"
+import { enqueueMail } from '../queues/services/mail.service.js';
 
 export const register = async (req, res) => {
   const start = Date.now();
@@ -269,14 +268,14 @@ export const forgetPasswordByUserEmail = async (req, res) => {
       "OTP generated"
     );
 
-    const { subject, html, text } = buildForgotPasswordOtpEmail({
-      name: user.name || "user",
-      otp,
-      role: "user",
-      expiryMinutes: ttlMinutes,
+    await enqueueMail({
+      type: "FORGOT_OTP",
+      to: email,
+      payload: { name: user.name, otp, expiryMinutes: 5 },
+      meta: { purpose: "forgot_password", userId: user.id },
+      jobId: `otp:${email}:${Date.now()}`,
+      priority: 1,
     });
-
-    await sendEmail({ to: email, subject, html, text });
 
     req.log.info(
       { action: "user.forgot_password", userId: user.id, durationMs: Date.now() - start },
