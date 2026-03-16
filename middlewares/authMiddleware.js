@@ -35,7 +35,7 @@ export const authenticate = (req, res, next) => {
     // user attach
     req.user = decoded;
 
-    next(); // ✅ allow
+    next(); 
   } catch (error) {
     console.log(error);
     return res.status(401).json({

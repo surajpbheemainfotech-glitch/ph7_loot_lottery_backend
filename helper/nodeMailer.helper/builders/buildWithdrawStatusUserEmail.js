@@ -56,7 +56,7 @@ export const buildWithdrawStatusUserEmail = ({
       statusUpper
     )}</span>`,
     updatedAt: new Date(updatedAt).toLocaleString("en-IN"),
-    adminNote: adminNoteBlock, // template must use {{{adminNote}}}
+    adminNote: adminNoteBlock, 
   });
 
   const text = `${appName} - Withdrawal Update

@@ -5,22 +5,10 @@ import {
     resetPasswordAdmin,
     verifyForgotPasswordAdminOtp
 } from '../controllers/adminController.js'
-import { authenticate } from '../middlewares/authMiddleware.js'
-import {
-    createPool,
-    deletePoolById,
-    getPool,
-    updatePoolBySlug
-} from '../controllers/poolsController.js'
-import {
-    addPackage,
-    deletePackageById,
-    getPackages,
-    updatePackageById
-} from '../controllers/packageController.js'
-import upload from '../config/multerConfig.js'
-import { getAllWithdrawRequests } from '../controllers/paymentController.js'
 import { adminRegister } from '../testing/register.admin.js'
+import poolsRouter from './poolsRoute.js'
+import packageRouter from './packageRoute.js'
+import paymentRoute from './paymentRoute.js'
 
 
 const adminRouter = express.Router()
@@ -35,20 +23,14 @@ adminRouter.post("/res",adminRegister)
 
 //pools
 
-adminRouter.post("/add-pools", authenticate, upload.single("Imageurl"), createPool)
-adminRouter.get("/pools", authenticate, getPool)
-adminRouter.patch("/pool/:slug", authenticate, upload.single("Imageurl"), updatePoolBySlug)
-adminRouter.delete("/pool/:id", authenticate, deletePoolById)
+adminRouter.use("/pool",poolsRouter)
 
 // packages
 
-adminRouter.post("/package/add", authenticate, addPackage)
-adminRouter.get("/package/", authenticate, getPackages)
-adminRouter.patch("/package/update-package/:id", authenticate, updatePackageById)
-adminRouter.delete("/package/delete-package/:id", authenticate, deletePackageById)
+adminRouter.use("/package",packageRouter)
 
 //withdraw requests
+adminRouter.use("/payment", paymentRoute)
 
-adminRouter.get("/get-withdraw-requests",authenticate,getAllWithdrawRequests)
 
 export default adminRouter

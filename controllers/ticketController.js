@@ -128,7 +128,7 @@ export const buyTicket = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "🎉 Ticket purchased successfully",
+      message: " Ticket purchased successfully",
       ticket: {
         ticket_id,
         pool_name,

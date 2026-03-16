@@ -336,7 +336,6 @@ export const getAllWithdrawRequests = async (req, res) => {
 export const approveWithdrawRequest = async (req, res) => {
   const start = Date.now();
   const { withdrawId, adminId, status, adminNote = "" } = req.body;
-  console.log(adminId)
   req.log?.info(
     { action: "withdraw.approve.start", withdrawId, adminId, status },
     "Admin approval started"
@@ -373,7 +372,7 @@ export const approveWithdrawRequest = async (req, res) => {
 
 
     const [wrRows] = await db.execute(
-      "SELECT id, user_id, status FROM withdraw_requests WHERE id=?",
+      "SELECT id, user_id, amount, status FROM withdraw_requests WHERE id=?",
       [withdrawId]
     );
 
@@ -437,12 +436,13 @@ export const approveWithdrawRequest = async (req, res) => {
       },
       "Withdraw status updated"
     );
+    let amount = wrRows[0].amount
 
     await enqueueMail({
       type: "WITHDRAW_STATUS_USER",
       to: user.email,
       meta: { withdrawId, userId: wrRows[0].user_id },
-      payload: { name: user.first_name, withdrawId, status },
+      payload: { name: user.first_name, withdrawId, amount , status,},
       jobId: `withdraw_status:${withdrawId}:${status}`,
       priority: 3,
     });
