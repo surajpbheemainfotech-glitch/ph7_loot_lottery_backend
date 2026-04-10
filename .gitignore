@@ -1,32 +1,31 @@
+# dependencies
 node_modules/
+
+# env files
 .env
+.env.*
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 newrelic_agent.log
 
-# =====================================================
-# Build / Cache
-# =====================================================
-dist/
-build/
-coverage/
-.nyc_output/
-
-# =====================================================
-# Temporary
-# =====================================================
-tmp/
-temp/
-.cache/
-
-# =====================================================
-# OS / Editor
-# =====================================================
+# OS files
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
 
-# =====================================================
-# Misc
-# =====================================================
-*.local
-*.orig
+# build
+dist
+build
+
+# docker
+.dockerignore
+
+# vscode
+.vscode/
+
+# testing
+coverage/

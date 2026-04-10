@@ -3,6 +3,7 @@ import "newrelic";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "path";
 
 import adminRouter from "./routes/adminRoute.js";
 import userRouter from "./routes/userRoute.js";
@@ -38,7 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // static files
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(process.cwd(), "src/uploads")));
 
 // logging
 app.use(requestId);

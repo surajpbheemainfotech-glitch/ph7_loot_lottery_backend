@@ -3,7 +3,7 @@ import { db } from '../config/db.js'
 export const addToCart = async (req, res) => {
     const start = Date.now();
 
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { pool_id, ticket_price, ticket_quantity } = req.body;
 
     req.log.info(
@@ -53,7 +53,7 @@ export const addToCart = async (req, res) => {
 
             await db.execute(
                 `UPDATE cart_items 
-                 SET ticket_quantity = ?, price_per_ticket = ?, updated_at = NOW()
+                 SET ticket_quantity = ?, ticket_price = ?, updated_at = NOW()
                  WHERE id = ?`,
                 [newQty, ticket_price, existingItem[0].id]
             );
@@ -65,7 +65,7 @@ export const addToCart = async (req, res) => {
         } else {
             await db.execute(
                 `INSERT INTO cart_items 
-                (cart_id, pool_id, ticket_quantity, price_per_ticket) 
+                (cart_id, pool_id, ticket_quantity,ticket_price) 
                 VALUES (?, ?, ?, ?)`,
                 [cartId, pool_id, ticket_quantity, ticket_price]
             );
@@ -77,7 +77,7 @@ export const addToCart = async (req, res) => {
         }
 
         const [cartTotal] = await db.execute(
-            `SELECT SUM(ticket_quantity * price_per_ticket) AS total 
+            `SELECT SUM(ticket_quantity * ticket_price) AS total 
              FROM cart_items WHERE cart_id = ?`,
             [cartId]
         );
@@ -115,7 +115,7 @@ export const addToCart = async (req, res) => {
 export const removeFromCart = async (req, res) => {
     const start = Date.now();
 
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { pool_id } = req.body;
 
     req.log.info(
@@ -157,7 +157,7 @@ export const removeFromCart = async (req, res) => {
         }
 
         const [cartTotal] = await db.execute(
-            `SELECT SUM(ticket_quantity * price_per_ticket) AS total 
+            `SELECT SUM(ticket_quantity * ticket_price) AS total 
              FROM cart_items WHERE cart_id = ?`,
             [cartId]
         );
@@ -200,7 +200,7 @@ export const removeFromCart = async (req, res) => {
 export const getCart = async (req, res) => {
     const start = Date.now();
 
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     req.log.info({ action: "cart.get", userId }, "Get cart request");
 
@@ -235,8 +235,8 @@ export const getCart = async (req, res) => {
 
         const [items] = await db.execute(
             `SELECT 
-                ci.id, ci.pool_id, ci.ticket_quantity, ci.price_per_ticket,
-                (ci.ticket_quantity * ci.price_per_ticket) AS total_price,
+                ci.id, ci.pool_id, ci.ticket_quantity, ci.ticket_price,
+                (ci.ticket_quantity * ci.ticket_price) AS total_price,
                 p.title AS pool_title, p.price AS current_price
              FROM cart_items ci
              JOIN pools p ON ci.pool_id = p.id

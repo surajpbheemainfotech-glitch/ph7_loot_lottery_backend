@@ -1,5 +1,5 @@
 import { db } from "../config/db.js";
-import { makeUniqueSlug, makeSlug } from "../helper/pool.helper/slugGenerator.js";
+import { makeUniqueSlug, makeSlug } from "../sevices/service.pool/slugGenerator.js";
 import fs from "fs";
 import path from "path";
 

@@ -2,18 +2,18 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// ensure uploads folder exists
-const uploadDir = path.join(process.cwd(), "uploads");
+const uploadDir = path.join(process.cwd(), "src/uploads");
 
+// ensure uploads folder exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// storage config
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir); 
+    cb(null, uploadDir);
   },
+
   filename: function (req, file, cb) {
     const uniqueName =
       Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20 MB
+    fileSize: 20 * 1024 * 1024, // 20MB
   },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {

@@ -2,7 +2,7 @@ import { db } from "../../config/db.js";
 import { logger } from "../../config/loggers.js";
 import { POOLS_LIST_KEY } from "../../redis/cache/pool.cache.js";
 import { redisClient } from "../../redis/redisClient.js";
-import { makeUniqueSlug } from "../../helper/pool.helper/slugGenerator.js";
+import { makeUniqueSlug } from "../../sevices/service.pool/slugGenerator.js";
 
 export const createDailyPools = async () => {
   const start = Date.now();

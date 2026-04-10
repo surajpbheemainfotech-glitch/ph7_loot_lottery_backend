@@ -1,9 +1,9 @@
 import { db } from "../config/db.js";
 import JWT from 'jsonwebtoken'
 import bcrypt from "bcryptjs"
-import { createOtp } from "../helper/otp.helper/otpService.js"
+import { createOtp } from "../sevices/service.otp/otpService.js"
 import { enqueueMail } from "../queues/services/mail.service.js"
-import { verifyOtp } from "../helper/otp.helper/otpService.js"
+import { verifyOtp } from "../sevices/service.otp/otpService.js"
 
 export const loginController = async (req, res) => {
   const start = Date.now();

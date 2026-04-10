@@ -2,8 +2,8 @@ import { Worker } from "bullmq";
 import { bullConnection } from "../queue/connect.queue.js";
 import { logger } from "../../config/loggers.js";
 
-import sendEmail from "../../helper/nodeMailer.helper/sendEmail.js"; 
-import { MAIL_BUILDERS } from "../../helper/nodeMailer.helper/builders/index.js";
+import sendEmail from "../../sevices/service.mail/sendEmail.js"; 
+import { MAIL_BUILDERS } from "../../sevices/service.mail/builders/index.js";
 
 export const mailWorker = new Worker(
   "mailQueue",

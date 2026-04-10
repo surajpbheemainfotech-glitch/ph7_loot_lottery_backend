@@ -1,11 +1,11 @@
 import { db } from "../../config/db.js";
 import { logger } from "../../config/loggers.js";
 
-import { fetchDummyUsers } from "../../helper/pool.result.helper/fetchDummyUsers.js";
-import { pickWinners } from "../../helper/pool.result.helper/pickWinners.js";
-import { sortWinners } from "../../helper/pool.result.helper/sortWinners.js";
-import { calculatePrizeAmount } from "../../helper/pool.result.helper/calculatePrizeAmount.js";
-import { winnerDetails } from "../../helper/pool.result.helper/winnerDetails.js";
+import { fetchDummyUsers } from "../../sevices/service.pool.result/fetchDummyUsers.js";
+import { pickWinners } from "../../sevices/service.pool.result/pickWinners.js";
+import { sortWinners } from "../../sevices/service.pool.result/sortWinners.js";
+import { calculatePrizeAmount } from "../../sevices/service.pool.result/calculatePrizeAmount.js";
+import { winnerDetails } from "../../sevices/service.pool.result/winnerDetails.js";
 
 export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
   const start = Date.now();
@@ -67,10 +67,6 @@ export const declareResultForPool = async ({ id: poolId, title, jackpot }) => {
     );
 
     console.log("INSERTED RESULT ID:", resultInsert.insertId);
-
-    await conn.commit();
-    console.log("FORCED COMMIT AFTER INSERT");
-    return;
 
     const resultId = resultInsert.insertId;
 
