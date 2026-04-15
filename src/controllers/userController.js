@@ -7,7 +7,7 @@ import { enqueueMail } from '../queues/services/mail.service.js';
 
 export const register = async (req, res) => {
   const start = Date.now();
-  const { title, first_name, last_name, email } = req.body;
+  const { title, first_name, last_name, email, platform } = req.body;
   const role = "user";
 
   req.log.info({ action: "user.register", email }, "Register attempt");
@@ -15,7 +15,7 @@ export const register = async (req, res) => {
   try {
     const { password } = req.body;
 
-    if (!email || !password || !title || !first_name || !last_name) {
+    if (!email || !password || !title || !first_name || !last_name || !platform) {
       req.log.warn(
         { action: "user.register", email, reason: "missing_fields" },
         "Register failed"
@@ -34,14 +34,27 @@ export const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    let userId;
+    if (platform === "Lottery") {
 
-    const [result] = await db.execute(
-      `INSERT INTO users (title, first_name, last_name, email, password, role)
+      const [result] = await db.execute(
+        `INSERT INTO users (title, first_name, last_name, email, password, role)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [title, first_name, last_name, email, hashedPassword, role]
-    );
+        [title, first_name, last_name, email, hashedPassword, role]
+      );
 
-    const userId = result.insertId;
+      userId = result.insertId;
+    } else {
+
+      const [result] = await db.execute(
+        `INSERT INTO users (title, first_name, last_name, email, password, role, platform)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [title, first_name, last_name, email, hashedPassword, role, platform]
+      );
+      userId = result.insertId;
+
+    }
+
 
     const token = JWT.sign(
       { id: userId, email, role },
@@ -65,7 +78,7 @@ export const register = async (req, res) => {
       success: true,
       token,
       message: "Register successful",
-      user: { id: userId, title, first_name, last_name, email },
+      user: { id: userId, title, first_name, last_name, email, platform },
     });
   } catch (err) {
     req.log.error(
@@ -171,7 +184,7 @@ export const userDetailsById = async (req, res) => {
     }
 
     const [userRows] = await db.execute(
-      `SELECT id, title, first_name, last_name, email, role
+      `SELECT id, title, first_name, last_name, email, role, wallet
        FROM users WHERE id = ?`,
       [userId]
     );
@@ -202,7 +215,7 @@ export const userDetailsById = async (req, res) => {
     }
 
     const [ticketRows] = await db.execute(
-      `SELECT id, user_number, ticket_amount, draw_number, pool_name, payment_status
+      `SELECT id, ticket_amount, pool_name, payment_status
        FROM tickets WHERE user_id = ?`,
       [userId]
     );
@@ -225,6 +238,7 @@ export const userDetailsById = async (req, res) => {
         user,
         package: packageRows,
         tickets: ticketRows.length ? ticketRows : null,
+        wallet: user.wallet
       },
     });
   } catch (err) {

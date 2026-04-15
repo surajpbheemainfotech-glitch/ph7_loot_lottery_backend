@@ -10,6 +10,6 @@ const resultRouter = express.Router()
 
 resultRouter.get("/user-result/:id",authenticate, getUserResultById)
 resultRouter.get("/:title",authenticate, getResultWinnersByPoolName)
-resultRouter.get("/all_results", authenticate,getResults)
+resultRouter.get("/all_results/:id",authenticate, getResults)
 
 export default resultRouter

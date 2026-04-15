@@ -1,4 +1,6 @@
-const getActiveCart = async (conn, userId) => {
+import generateTicketId from "./ticketIdGenerator.js";
+
+export const getActiveCart = async (conn, userId) => {
   const [[cart]] = await conn.execute(
     `SELECT id FROM carts WHERE user_id = ? AND status='active' LIMIT 1`,
     [userId]
@@ -8,14 +10,45 @@ const getActiveCart = async (conn, userId) => {
 };
 
 export const getCartItems = async (conn, cartId) => {
-  const [items] = await conn.execute(
-    `SELECT ci.*, p.draw_number, p.title AS pool_name
-     FROM cart_items ci
-     JOIN pools p ON ci.pool_id = p.id
-     WHERE ci.cart_id = ?`,
+
+  const [rows] = await conn.execute(
+    `SELECT
+    ci.id,
+    ci.pool_id,
+    p.title AS pool_name,
+    ci.ticket_price,
+
+    COUNT(ct.id) AS ticket_quantity,
+    (COUNT(ct.id) * ci.ticket_price) AS total_price,
+
+    JSON_ARRAYAGG(
+      JSON_OBJECT(
+        'ticket_name', ct.ticket_name,
+        'ticket_number', ct.ticket_number
+      )
+    ) AS tickets
+
+FROM cart_items ci
+JOIN pools p ON p.id = ci.pool_id
+JOIN cart_tickets ct ON ct.cart_item_id = ci.id
+WHERE ci.cart_id = ?
+GROUP BY ci.id
+ORDER BY ci.created_at ASC`,
     [cartId]
   );
-  if (!items.length) throw new Error("Cart is empty");
+
+  if (!rows.length) {
+    throw new Error("Cart is empty");
+  }
+
+  const items = rows.map(row => ({
+    ...row,
+    tickets: typeof row.tickets === "string"
+      ? JSON.parse(row.tickets)
+      : row.tickets
+  }));
+
+
   return items;
 };
 
@@ -35,32 +68,51 @@ export const getUserForUpdate = async (conn, userId) => {
 };
 
 export const createTicketsFromCart = async (conn, items, userId) => {
-  let tickets = [];
+
+  console.dir(items, { depth: null });
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Cart is empty");
+  }
+
+  const createdTickets = [];
 
   for (const item of items) {
-    for (let i = 0; i < item.ticket_quantity; i++) {
-      const ticketId = generateTicketId(item.pool_name);
+
+    if (!Array.isArray(item.tickets) || item.tickets.length === 0) {
+      continue;
+    }
+
+    const price = item.ticket_price ?? 0; // ✅ FIX HERE
+
+    for (const ticket of item.tickets) {
+
+      if (!ticket || ticket.ticket_number == null) {
+        continue;
+      }
 
       await conn.execute(
         `INSERT INTO tickets
-        (id, user_id, user_number, ticket_amount, draw_number, pool_name, payment_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, ticket_amount, ticket_number, pool_name, payment_status)
+        VALUES (?, ?, ?, ?, ?)`,
         [
-          ticketId,
           userId,
-          Math.floor(100000 + Math.random() * 900000),
-          item.price_per_ticket,
-          item.draw_number,
+          price,                         // ✅ FIXED
+          ticket.ticket_number,         // ✅ FIXED
           item.pool_name,
-          "SUCCESS",
+          "paid"
         ]
       );
 
-      tickets.push(ticketId);
+      createdTickets.push(ticket.ticket_number);
     }
   }
 
-  return tickets;
+  if (!createdTickets.length) {
+    throw new Error("Cart is empty");
+  }
+
+  return createdTickets;
 };
 
 export const updateWallet = async (conn, userId, amount) => {

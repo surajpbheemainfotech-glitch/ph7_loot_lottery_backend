@@ -18,8 +18,8 @@ async function start() {
     await connectDB();
     await connectRedis();
  
-    await registerSchedulers();
-    await startWorkers();
+    // await registerSchedulers();
+    // await startWorkers();
 
     const server = app.listen(PORT, HOST, () => {
       logger.info(

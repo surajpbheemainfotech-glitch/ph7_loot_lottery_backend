@@ -1,10 +1,9 @@
 import { db } from "../config/db.js";
-import generateTicketId from "../sevices/service.ticket/ticketIdGenerator.js";
-
+import { checkoutCartService } from "../sevices/service.ticket/checkoutCartService.js";
 
 export const buyCartTickets = async (req, res) => {
   const start = Date.now();
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   const ctx = { action: "cart.buy_all", userId };
 

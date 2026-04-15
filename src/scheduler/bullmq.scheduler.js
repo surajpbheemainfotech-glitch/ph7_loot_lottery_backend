@@ -16,7 +16,7 @@ export async function registerSchedulers() {
 
     await maintenanceQueue.upsertJobScheduler(
       "otp-cleanup-30m",
-      { every: 30 * 60 * 1000 },
+      { every: 24 * 60 * 60 * 1000 },
       { name: "otp-cleanup", data: {} }
     );
 

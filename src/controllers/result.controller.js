@@ -128,15 +128,16 @@ export const getUserResultById = async (req, res) => {
 };
 
 export const getResults = async (req,res) =>{
+  
 
-     const user = req.params.id
-
-     if(!user){
-      return res.status(403).json({
-        success: false, 
-        message: "Unauthorized ."
-      })
-     }
+  const userId = req.user.userId
+ console.log(req.user)
+  if(!userId){
+    return res.status(401).json({
+      success: false, 
+      message: "Unauthorized ."
+    })
+  }
   try {
     
       const [results] = await db.execute(
