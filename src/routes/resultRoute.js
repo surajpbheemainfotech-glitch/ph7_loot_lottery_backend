@@ -9,7 +9,7 @@ import { authenticate } from '../middlewares/authMiddleware.js'
 const resultRouter = express.Router()
 
 resultRouter.get("/user-result/:id",authenticate, getUserResultById)
-resultRouter.get("/:title",authenticate, getResultWinnersByPoolName)
-resultRouter.get("/all_results/:id",authenticate, getResults)
+resultRouter.get("/:title/pool",authenticate, getResultWinnersByPoolName)
+resultRouter.get("/all_results", getResults)
 
 export default resultRouter

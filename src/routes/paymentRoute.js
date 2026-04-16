@@ -6,7 +6,7 @@ import {
         getAllWithdrawRequests, 
         requestWithdrawAmount, 
          verifyPayment
-         } from '../controllers/paymentController.js'
+         } from '../controllers/payment.controller.js'
 import { authenticate } from '../middlewares/authMiddleware.js'
 
 const paymentRoute = express.Router()

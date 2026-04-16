@@ -128,16 +128,8 @@ export const getUserResultById = async (req, res) => {
 };
 
 export const getResults = async (req,res) =>{
-  
-
-  const userId = req.user.userId
- console.log(req.user)
-  if(!userId){
-    return res.status(401).json({
-      success: false, 
-      message: "Unauthorized ."
-    })
-  }
+   const start = Date.now();
+    req.log.info({action: "pool.results"},  "All results request");
   try {
     
       const [results] = await db.execute(
@@ -154,17 +146,26 @@ export const getResults = async (req,res) =>{
       )
 
       if(results.length === 0){
-        return res.status(404).json({
+        return res.json({
           success: false, 
           message: "Results are not declared yet ."
         })
       }
 
+      req.log.info(
+      {  durationMs: Date.now() - start },
+      "Result checkout success"
+    );
+
       return res.status(200).json({
         success: true,
         results: results
       })
-  } catch (error) {
+  } catch (err) {
+    req.log.error(
+      { err, durationMs: Date.now() - start },
+      "All result checkout failed"
+    );
     return res.status(500).json({
       success: false, 
       message: "Internal server error ."

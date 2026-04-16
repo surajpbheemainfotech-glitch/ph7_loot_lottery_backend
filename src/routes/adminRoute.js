@@ -4,7 +4,7 @@ import {
     loginController,
     resetPasswordAdmin,
     verifyForgotPasswordAdminOtp
-} from '../controllers/adminController.js'
+} from '../controllers/admin.controller.js'
 import { adminRegister } from '../testing/register.admin.js'
 import poolsRouter from './poolsRoute.js'
 import packageRouter from './packageRoute.js'

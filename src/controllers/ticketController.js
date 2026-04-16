@@ -83,6 +83,52 @@ export const deleteTicketByStatus = async (req, res) => {
   }
 };
 
+export const soldTickets = async (req, res) => {
+  const start = Date.now();
+  const userId = req.user.userId
+  const pool_slug = req.params.slug
+
+  const ctx = { action: "cart.buy_all", userId };
+
+  req.log.info(ctx, "Check sold tickets request");
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false, message: "Login please ."
+    })
+  }
+  try {
+    const [soldTickets] = await db.execute(
+      `SELECT t.ticket_number
+       FROM tickets t
+       JOIN pools p ON t.pool_name = p.title
+       WHERE p.slug = ?;`,
+      [pool_slug]
+    )
+    req.log.info(
+      { ...ctx,  durationMs: Date.now() - start },
+      "Sold tickets checkout success"
+    );
+
+    if(soldTickets.length === 0){
+      return res.json({soldTickets: soldTickets || []})
+    }
+     
+    return res.status(200).json({success: true, soldTickets: soldTickets})
+  } catch (error) {
+    req.log.error(
+      { ...ctx, err, durationMs: Date.now() - start },
+      "Sold tickets checkout failed"
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Checkout failed",
+    });
+  }
+  
+}
+
 
 
 

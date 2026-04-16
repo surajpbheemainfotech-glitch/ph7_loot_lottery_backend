@@ -7,6 +7,7 @@ import { enqueueMail } from '../queues/services/mail.service.js';
 
 export const register = async (req, res) => {
   const start = Date.now();
+
   const { title, first_name, last_name, email, platform } = req.body;
   const role = "user";
 
@@ -92,6 +93,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const start = Date.now();
   const { email } = req.body;
+ 
 
   req.log.info({ action: "user.login", email }, "Login attempt");
 
@@ -175,6 +177,7 @@ export const userDetailsById = async (req, res) => {
   const start = Date.now();
   const userId = req.params.id;
 
+
   req.log.info({ action: "user.profile", userId }, "User profile request");
 
   try {
@@ -249,6 +252,43 @@ export const userDetailsById = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
+
+export const fetchWallet = async(req, res) => {
+ const start = Date.now();
+  const userId = req.params.id
+
+  if(!userId){
+    return res.status(401).json({success: false, message: "Unauthorized ."})
+  }
+   req.log.info({ action: "user.wallet.fetch"}, "Fetch wallet attempt");
+
+  try {
+
+      const [user] = await db.execute( `SELECT wallet, email FROM users WHERE id = ?`,[userId])
+
+      if(user.length === 0){
+        return res.status(402).json({
+          success: false, message: "Unauthorized ."
+        })
+      }
+
+      req.log.info(
+      { action: "user.wallet.fetch", userId, durationMs: Date.now() - start },
+      "Register successful"
+    );
+      return res.status(200).json({
+        success: true, wallet: user[0].wallet
+      })
+    
+  } catch (err) {
+    req.log.error(
+      { action: "user.wallet.fetch", email, err, durationMs: Date.now() - start },
+      "Register crashed"
+    );
+    return res.status(500).json({ success: false, message: err.message });
+  }
+  
+}
 
 export const forgetPasswordByUserEmail = async (req, res) => {
   const start = Date.now();

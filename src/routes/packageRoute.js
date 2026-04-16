@@ -4,7 +4,7 @@ import {
      deletePackageById,
       getPackages,
        updatePackageById
-    } from '../controllers/packageController.js'
+    } from '../controllers/package.controller.js'
 import { authenticate } from '../middlewares/authMiddleware.js'
 
 

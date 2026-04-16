@@ -18,6 +18,7 @@ import uploadErrorHandler from "./middlewares/multerMiddleware.js";
 import { errorHandler } from "./middlewares/errorHandlerMiddleware.js";
 
 import { requestId, httpLogger } from "./middlewares/logger.middlewares/logger-middleware.js";
+import { ipRateLimiter } from "./middlewares/logger.middlewares/ratelimitMiddleware.js";
 
 
 
@@ -41,9 +42,10 @@ app.use(cookieParser());
 // static files
 app.use("/uploads", express.static(path.join(process.cwd(), "src/uploads")));
 
-// logging
+// logging middlewares
 app.use(requestId);
 app.use(httpLogger);
+app.use(ipRateLimiter);
 
 // routes
 app.use("/api/admin", adminRouter);

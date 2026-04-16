@@ -4,7 +4,7 @@ import {
     getPool,
     updatePoolBySlug,
     createPool
-} from '../controllers/poolsController.js'
+} from '../controllers/pools.controller.js'
 import upload from '../config/multerConfig.js'
 import { authenticate } from '../middlewares/authMiddleware.js'
 
